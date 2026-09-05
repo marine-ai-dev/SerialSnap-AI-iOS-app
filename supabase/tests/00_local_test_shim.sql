@@ -21,3 +21,19 @@ language sql stable
 as $$
     select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid;
 $$;
+
+-- A real Supabase project always has these two built-in roles (PostgREST
+-- authenticates as one or the other); migrations that `grant ... to
+-- authenticated` (e.g. 20260901000003_delete_own_account.sql) fail against
+-- a bare Postgres instance without them. Created as NOLOGIN roles purely so
+-- GRANT has a target — nothing here logs in as them directly.
+do $$
+begin
+    if not exists (select 1 from pg_roles where rolname = 'authenticated') then
+        create role authenticated nologin;
+    end if;
+    if not exists (select 1 from pg_roles where rolname = 'anon') then
+        create role anon nologin;
+    end if;
+end
+$$;

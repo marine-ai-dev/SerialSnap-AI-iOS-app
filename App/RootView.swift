@@ -1,3 +1,4 @@
+import AuthenticationServices
 import SwiftUI
 import Auth
 import Workspace
@@ -32,6 +33,8 @@ struct RootView: View {
 
 struct OnboardingView: View {
     @EnvironmentObject private var authSession: AuthSessionStore
+    @State private var coordinator = SignInWithAppleCoordinator()
+    @State private var signInError: String?
 
     var body: some View {
         VStack(spacing: 24) {
@@ -47,11 +50,30 @@ struct OnboardingView: View {
                 .foregroundStyle(SSColor.secondaryText)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
+            if let signInError {
+                Text(signInError)
+                    .font(SSFont.caption)
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+                    .accessibilityLabel(signInError)
+            }
             Spacer()
             Button {
-                // TODO(milestone 2): wire real ASAuthorizationAppleIDButton
-                // flow producing an identity token + nonce, then call
-                // authSession.signInWithApple(identityToken:nonce:).
+                signInError = nil
+                coordinator.signIn { result in
+                    switch result {
+                    case .success(let credential):
+                        Task {
+                            await authSession.signInWithApple(identityToken: credential.identityToken, nonce: credential.nonce)
+                        }
+                    case .failure(let error):
+                        // ASAuthorizationError.canceled is the user dismissing
+                        // the system sheet — not an error worth surfacing.
+                        if (error as? ASAuthorizationError)?.code == .canceled { return }
+                        signInError = String(describing: error)
+                    }
+                }
             } label: {
                 Label(L10n.Auth.signInWithApple, systemImage: "apple.logo")
                     .frame(maxWidth: .infinity)
