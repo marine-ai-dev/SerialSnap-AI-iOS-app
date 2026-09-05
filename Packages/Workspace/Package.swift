@@ -1,0 +1,13 @@
+// swift-tools-version:5.9
+import PackageDescription
+
+let package = Package(
+    name: "Workspace",
+    platforms: [.iOS(.v17)],
+    products: [
+        .library(name: "Workspace", targets: ["Workspace"])
+    ],
+    targets: [
+        .target(name: "Workspace")
+    ]
+)

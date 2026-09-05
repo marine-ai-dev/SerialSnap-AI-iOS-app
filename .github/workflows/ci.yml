@@ -1,0 +1,173 @@
+name: CI
+
+# Runs on every push and pull request to any branch.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------
+  # Discover which local Swift packages currently exist under Packages/*
+  # so the build/test job can fan out over exactly what's there, without
+  # hardcoding a package list that will drift as packages are added.
+  # ---------------------------------------------------------------------
+  discover-packages:
+    runs-on: macos-14
+    outputs:
+      packages: ${{ steps.list.outputs.packages }}
+      has_packages: ${{ steps.list.outputs.has_packages }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: List Swift packages
+        id: list
+        run: |
+          set -euo pipefail
+          matrix="[]"
+          if compgen -G "Packages/*/Package.swift" > /dev/null; then
+            names=()
+            for pkg in Packages/*/Package.swift; do
+              names+=("\"$(dirname "$pkg")\"")
+            done
+            matrix="[$(IFS=,; echo "${names[*]}")]"
+          fi
+          echo "packages=$matrix" >> "$GITHUB_OUTPUT"
+          if [ "$matrix" = "[]" ]; then
+            echo "has_packages=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_packages=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Discovered packages: $matrix"
+
+  # ---------------------------------------------------------------------
+  # Build & test every discovered local Swift package.
+  # ---------------------------------------------------------------------
+  build-and-test:
+    needs: discover-packages
+    if: needs.discover-packages.outputs.has_packages == 'true'
+    runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJson(needs.discover-packages.outputs.packages) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select latest stable Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Show Swift version
+        run: swift --version
+
+      - name: swift build (${{ matrix.package }})
+        working-directory: ${{ matrix.package }}
+        run: swift build
+
+      - name: swift test (${{ matrix.package }})
+        working-directory: ${{ matrix.package }}
+        run: swift test
+
+  # ---------------------------------------------------------------------
+  # Lint. Runs SwiftLint if a config is present anywhere in the repo;
+  # otherwise this job succeeds trivially rather than failing CI.
+  # ---------------------------------------------------------------------
+  lint:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for SwiftLint configuration
+        id: config
+        run: |
+          if [ -f ".swiftlint.yml" ] || [ -f ".swiftlint.yaml" ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install SwiftLint
+        if: steps.config.outputs.found == 'true'
+        run: brew install swiftlint
+
+      - name: Run SwiftLint
+        if: steps.config.outputs.found == 'true'
+        run: swiftlint lint --strict
+
+      - name: Skip (no SwiftLint config found)
+        if: steps.config.outputs.found == 'false'
+        run: echo "No .swiftlint.yml/.swiftlint.yaml found — skipping lint without failing the build."
+
+  # ---------------------------------------------------------------------
+  # Validate Supabase SQL migrations against an ephemeral local Postgres
+  # container. No real Supabase project or secrets are required or used.
+  # ---------------------------------------------------------------------
+  migrations:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: postgres
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for migrations
+        id: check
+        run: |
+          if compgen -G "supabase/migrations/*.sql" > /dev/null; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install psql client
+        if: steps.check.outputs.found == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Wait for Postgres
+        if: steps.check.outputs.found == 'true'
+        run: |
+          for i in $(seq 1 30); do
+            pg_isready -h localhost -p 5432 -U postgres && break
+            sleep 2
+          done
+
+      - name: Apply migrations in order against ephemeral Postgres
+        if: steps.check.outputs.found == 'true'
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for f in $(ls supabase/migrations/*.sql | sort); do
+            echo "::group::Applying $f"
+            psql -v ON_ERROR_STOP=1 -f "$f"
+            echo "::endgroup::"
+          done
+
+      - name: Skip (no migrations found yet)
+        if: steps.check.outputs.found == 'false'
+        run: echo "No supabase/migrations/*.sql found — skipping migration validation."
