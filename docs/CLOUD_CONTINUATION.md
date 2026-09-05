@@ -199,8 +199,9 @@ Roughly in the order they unblock each other:
 
 1. **Verify compilation** (see "Next executable milestone" — this is the
    very next thing to do, before writing more code).
-2. Wire `Auth` and `Workspace` packages to a real `supabase-swift` client:
-   replace `App/UnimplementedBackends.swift` with real
+2. ✅ **Done (milestone 2 update below).** Wire `Auth` and `Workspace`
+   packages to a real `supabase-swift` client: replace
+   `App/UnimplementedBackends.swift` with real
    `SupabaseAuthBackend`/`SupabaseWorkspaceBackend` implementations.
 3. Full Sign in with Apple UI flow (`ASAuthorizationAppleIDButton`,
    nonce generation/hashing, Keychain token storage per `docs/SECURITY.md`).
@@ -221,13 +222,15 @@ Roughly in the order they unblock each other:
    `AssetStore.findDuplicates`.
 8. Asset list/detail screens wired to real `AssetStore` data (list
    currently always renders the empty state).
-9. `SwiftData`-backed concrete `AssetLocalStore` and `WriteQueueStore`
-   (currently only `InMemoryAssetLocalStore`/`InMemoryWriteQueueStore`
-   exist, used for tests — production needs durable on-device storage).
-10. `Sync` engine wired to a real `RemoteAssetService` implementation
-    calling Supabase's PostgREST endpoints (`/rest/v1/assets`), including
-    sending `idempotency_key` and handling the unique-constraint conflict
-    response for a duplicate retry.
+9. ✅ **Done (milestone 2 update below).** `SwiftData`-backed concrete
+   `AssetLocalStore` and `WriteQueueStore` (currently only
+   `InMemoryAssetLocalStore`/`InMemoryWriteQueueStore` exist, used for
+   tests — production needs durable on-device storage).
+10. ✅ **Done (milestone 2 update below).** `Sync` engine wired to a real
+    `RemoteAssetService` implementation calling Supabase's PostgREST
+    endpoints (`/rest/v1/assets`), including sending `idempotency_key` and
+    handling the unique-constraint conflict response for a duplicate
+    retry.
 11. CSV/JSON export UI (`ShareLink`) using `Export.AssetExporter`.
 12. Settings screens beyond the current stub list: language picker wired
     to actual locale switching, privacy/about content screens.
@@ -303,3 +306,238 @@ Exact steps for a fresh agent:
 None of the above blocked the work done in this milestone; they are
 recorded so the next milestone starts by closing the compilation-
 verification gap rather than assuming this session's code already builds.
+
+## Milestone 2 update (2026-09-05)
+
+Same environment as milestone 1: **still no Swift toolchain, Xcode, or
+Docker daemon in this Linux container**, and `download.swift.org` is still
+blocked by the outbound proxy. Everything below was written by careful
+manual review and cross-checked directly against the real
+`supabase-swift` v2.55.1 source (cloned read-only from
+`github.com/supabase/supabase-swift` into `/home/user/supabase/supabase-swift`
+in this session specifically to confirm exact API signatures — the
+`signInWithIdToken(credentials:)`/`Provider`/`PostgrestFilterBuilder`/
+`upsert(onConflict:)`/etc. shapes below are not guesses), but it is still
+**UNVERIFIED by an actual `swift build`/`xcodebuild`** in this session.
+Treat it with the same "needs a real compiler pass" caution as milestone
+1's code.
+
+### What was implemented (milestones 2, 9, 10 from the remaining list)
+
+1. **New package `Packages/SupabaseKit`** — the only place in the repo
+   that depends on `supabase-swift` (added as a Swift Package Manager
+   dependency, `from: "2.55.0"`). See ADR-006 in
+   `docs/ARCHITECTURE_DECISIONS.md` for the full reasoning: `supabase-swift`
+   ships a module literally named `Auth`, which would otherwise collide
+   with this repo's own `Packages/Auth` module in the SwiftPM build graph.
+   `SupabaseKit` uses SwiftPM module aliasing (`moduleAliases: ["Auth":
+   "SupabaseAuthKit"]`) on its one dependency edge to the `Supabase`
+   product to avoid that collision, and exposes a plain-Swift facade
+   (`SupabaseGateway`, `SupabaseConfig`) so no other package ever needs to
+   `import Supabase`/`Auth`/`PostgREST` directly.
+   - **This module-aliasing declaration is the single highest-risk
+     unverified piece of this milestone.** It is the documented, official
+     SwiftPM answer to this exact kind of collision (SE-0339), and was
+     checked twice against the real manifest, but a `swift build` (or
+     `xcodegen generate` + Xcode build) from `Packages/SupabaseKit` must
+     be the very first thing done in the next environment with a real
+     toolchain, before anything else in this update is trusted further.
+   - **New build requirement this introduces:** `supabase-swift`'s own
+     `Package.swift` declares `// swift-tools-version:6.1`. This repo's
+     packages still declare `5.9`, but resolving `SupabaseKit`'s
+     dependency graph now requires a SwiftPM/Xcode toolchain that
+     understands a 6.1 manifest — practically, **Xcode 16.0+** on the
+     next macOS build machine (this was not a constraint before this
+     milestone).
+
+2. **Real `AuthBackend`** —
+   `Packages/Auth/Sources/Auth/SupabaseAuthBackend.swift`. Sign in with
+   Apple exchanges the identity token via `SupabaseGateway.signInWithApple`
+   → `client.auth.signInWithIdToken(credentials: OpenIDConnectCredentials(
+   provider: .apple, idToken:, nonce:))`; session restore/refresh via
+   `client.auth.session` (the SDK handles refresh internally); sign-out via
+   `client.auth.signOut()`; account deletion via a `delete_own_account`
+   Postgres RPC call (see "What remains" below — that RPC function is
+   **not yet defined as a migration**, only called). No token, nonce, or
+   session value is ever logged anywhere in this path (checked against
+   docs/SECURITY.md's "Secret handling" standard — `SupabaseGateway`,
+   `SupabaseAuthBackend`, and `AppDependencies` contain zero `print`/
+   `Logger`/`os_log` calls touching any credential-shaped value).
+
+3. **Real `WorkspaceBackend`** —
+   `Packages/Workspace/Sources/Workspace/SupabaseWorkspaceBackend.swift`,
+   over PostgREST (`workspaces` / `workspace_memberships` tables), matching
+   `supabase/migrations/20260901000001_initial_schema.sql` exactly (column
+   names/types cross-checked against that file). `fetchWorkspaces` issues
+   a deliberately unfiltered `SELECT` on `workspaces` — RLS is what
+   actually restricts the result set, not a client-side filter (per
+   docs/SECURITY.md, the client never re-implements authorization). No
+   service-role key anywhere in this code — only the anon key, read from
+   `SupabaseConfig`.
+
+4. **`SwiftData`-backed local stores** (milestone-remaining item 9):
+   - `Packages/Assets/Sources/Assets/SwiftDataAssetLocalStore.swift` —
+     `PersistedAsset` (`@Model`) + `SwiftDataAssetLocalStore:
+     AssetLocalStore`.
+   - `Packages/Sync/Sources/Sync/SwiftDataWriteQueueStore.swift` —
+     `PersistedWriteOperation` (`@Model`) + `SwiftDataWriteQueueStore:
+     WriteQueueStore`.
+   - Both gated behind `#if canImport(SwiftData)` /
+     `@available(iOS 17, macOS 14, *)`, so the packages still build (with
+     just the in-memory stores available) on any platform without
+     SwiftData. `InMemoryAssetLocalStore` / `InMemoryWriteQueueStore` are
+     untouched and still used by `AssetStoreTests` / `SyncEngineTests`.
+
+5. **Real `RemoteAssetService`** (milestone-remaining item 10) —
+   `Packages/Sync/Sources/Sync/SupabaseAssetRemoteService.swift`, over
+   PostgREST (`assets` table). **Idempotent writes**: upserts on the row's
+   primary key (`id`, the client-generated `AssetID`) via
+   `Prefer: resolution=merge-duplicates`, so a retried `WriteOperation`
+   (same `assetID`) is a safe no-op/clean re-apply rather than a
+   duplicate row. `idempotency_key` (already present in the initial schema
+   migration, with its existing unique index
+   `uq_assets_workspace_idempotency` on `(workspace_id, idempotency_key)`)
+   is still sent on every write and still enforced by that index as an
+   independent integrity guard. **No new migration was needed** — that
+   column/index already existed from milestone 1; see
+   docs/CLOUD_ARCHITECTURE.md "Idempotent asset writes" for the full
+   rationale and the alternative considered (a bespoke
+   `upsert_asset_idempotent` RPC). Soft-delete (`is_deleted = true`) is
+   implemented as a scoped `UPDATE`, not a hard `DELETE`, per the existing
+   tombstone design.
+
+6. **Composition root** — `App/AppDependencies.swift` (new file, plain
+   `@MainActor` Swift object, no `View` body): reads
+   `Config/Supabase.xcconfig` via `Bundle.main.infoDictionary` →
+   `SupabaseConfig.fromInfoDictionary(_:)`, `fatalError`s with a clear
+   message if it's missing (see below), builds one `SupabaseGateway`, and
+   wires every real backend + the SwiftData stores + `SyncEngine` +
+   `AssetStore` from it. `App/SerialSnapApp.swift` now constructs this once
+   and hands `authSession`/`workspaceStore` to `RootView` as environment
+   objects (this is the one non-additive edit to an existing `App/*.swift`
+   file this session made — `SerialSnapApp.swift` is not itself a
+   `*Screen*.swift` file, so it was in scope per this session's file-scope
+   split with the concurrent UI agent). `App/UnimplementedBackends.swift`
+   was **not deleted**: its doc comment was updated to say it's now for
+   SwiftUI Previews / ad hoc manual screen testing only, since nothing in
+   the real app wires it in anymore.
+
+7. **Config plumbing**: `Config/Supabase.xcconfig.example` (new, template
+   only — real values never committed), `.gitignore` updated with
+   `Config/*.xcconfig` / `!Config/*.xcconfig.example` (mirroring the
+   existing `.env`/`.env.example` pattern), `project.yml` updated with a
+   project-level `configFiles: {Debug: Config/Supabase.xcconfig, Release:
+   Config/Supabase.xcconfig}` entry and two Info.plist properties
+   (`SUPABASE_URL`/`SUPABASE_ANON_KEY`, both `$(...)`-substituted from the
+   xcconfig, never hardcoded) plus the new `SupabaseKit` package/target
+   dependency. Documented in `Config/Supabase.xcconfig.example` itself: a
+   `.xcconfig` file treats `//` as a comment delimiter, which would
+   silently truncate a `https://...` URL — the example shows the standard
+   `https:/$()/...` escape.
+
+### Real Postgres re-verification (fresh database, full migration set)
+
+Run in this session, against a **freshly created** database (not reusing
+milestone 1's `serialsnap_verify`), specifically because milestone 2
+touches nothing in `supabase/` but the task required re-confirming the
+full set still applies cleanly end-to-end before relying on
+`idempotency_key`/its unique index in new application code:
+
+```
+$ sudo -u postgres psql -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS serialsnap_verify2;"
+$ sudo -u postgres psql -v ON_ERROR_STOP=1 -c "CREATE DATABASE serialsnap_verify2;"
+
+$ sudo -u postgres psql -d serialsnap_verify2 -v ON_ERROR_STOP=1 \
+    -f supabase/tests/00_local_test_shim.sql
+CREATE SCHEMA
+CREATE TABLE
+CREATE FUNCTION
+
+$ sudo -u postgres psql -d serialsnap_verify2 -v ON_ERROR_STOP=1 \
+    -f supabase/migrations/20260901000001_initial_schema.sql
+CREATE EXTENSION
+CREATE TABLE
+CREATE FUNCTION
+CREATE TRIGGER
+CREATE TABLE
+CREATE TYPE
+CREATE TABLE
+CREATE INDEX (x4)
+CREATE FUNCTION
+CREATE TRIGGER
+CREATE TABLE
+CREATE INDEX (x4)
+CREATE FUNCTION
+CREATE TRIGGER (x2)
+-- no errors --
+
+$ sudo -u postgres psql -d serialsnap_verify2 -v ON_ERROR_STOP=1 \
+    -f supabase/migrations/20260901000002_row_level_security.sql
+ALTER TABLE (x4)
+CREATE FUNCTION (x2)
+CREATE POLICY (x12)
+-- no errors --
+
+$ sudo -u postgres psql -d serialsnap_verify2 -v ON_ERROR_STOP=1 \
+    -f supabase/tests/10_rls_isolation_test.sql
+NOTICE:  PASS: alice_sees_only_own_workspace_assets
+NOTICE:  PASS: cross_tenant_update_denied
+NOTICE:  PASS: cross_tenant_delete_denied
+NOTICE:  PASS: cross_tenant_insert_denied
+NOTICE:  PASS: cross_tenant_workspace_select_denied
+NOTICE:  PASS: same_tenant_update_allowed
+NOTICE:  ALL RLS ISOLATION TESTS PASSED
+```
+
+Also confirmed directly (`\d public.assets` against the fresh database)
+that `idempotency_key text` and
+`uq_assets_workspace_idempotency UNIQUE, btree (workspace_id,
+idempotency_key) WHERE idempotency_key IS NOT NULL` already exist exactly
+as `SupabaseAssetRemoteService` and `docs/CLOUD_ARCHITECTURE.md` assume —
+confirming no new migration was needed for this milestone.
+`supabase/tests/10_rls_isolation_test.sql` was not modified: the new
+application code doesn't touch a column any existing policy doesn't
+already cover.
+
+### What remains unverified / explicitly out of scope for this update
+
+- **Everything Swift, by compilation** — same caveat as milestone 1, now
+  additionally covering: the `SupabaseKit` module-aliasing declaration
+  (highest risk, see above), every new file's exact conformance to the
+  `supabase-swift` v2.55.1 API surface (cross-checked against source, not
+  a compiler), and whether `Auth`/`Workspace`/`Sync`/`Assets` still build
+  cleanly with their new dependency edges.
+- `delete_own_account` Postgres RPC: `SupabaseAuthBackend.deleteAccount()`
+  calls `client.rpc("delete_own_account")`, but **no migration defines
+  that function yet** — this was called out as a documentation TODO in
+  `docs/CLOUD_ARCHITECTURE.md` and needs a follow-up migration (a
+  `security definer` function that deletes the caller's own `auth.users`
+  row, cascading to their owned data) before Sign in with Apple's delete-
+  account flow can work end-to-end against a real project.
+- The full Sign in with Apple **UI** flow (`ASAuthorizationAppleIDButton`,
+  nonce generation/SHA-256 hashing, Keychain storage) — `SupabaseAuthBackend`
+  is ready to receive `(identityToken, nonce)`, but nothing in this
+  session produces them yet; that's milestone-remaining item 3, explicitly
+  out of scope here (screens are the concurrent UI agent's lane).
+- `xcodegen generate` / opening the generated `.xcodeproj` — still
+  impossible in this container (no XcodeGen, no Xcode).
+- A real Supabase project to point `Config/Supabase.xcconfig` at and
+  exercise `SupabaseGateway` against real HTTP traffic — this session
+  only had local Postgres, no Supabase Auth/PostgREST HTTP layer, so the
+  actual network calls in `SupabaseGateway` remain exercised only by
+  manual code review against the SDK source, never a live request.
+
+### Commits this update (chronological)
+
+See `git log` on this branch for the exact hashes — each commit trailer
+carries the `Co-Authored-By`/`Claude-Session` lines per this session's
+attribution convention. Commits were kept small and rebased against
+`origin/claude/serialsnap-ios-production-6yb4rs` before each push to pick
+up the concurrent UI agent's work; no merge conflicts occurred given the
+file-scope split (this session touched `Packages/SupabaseKit/**`,
+`Packages/Auth/**`, `Packages/Workspace/**`, `Packages/Sync/**`,
+`Packages/Assets/**` storage files, `App/AppDependencies.swift`,
+`App/SerialSnapApp.swift`, `App/UnimplementedBackends.swift`,
+`Config/**`, `project.yml`, `.gitignore`, and `docs/**` — never a
+`*Screen*.swift` file, `Packages/DesignSystem/**`, or
+`Packages/Localization/**`).
