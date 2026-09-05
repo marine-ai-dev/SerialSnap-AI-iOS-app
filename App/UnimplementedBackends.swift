@@ -3,13 +3,16 @@ import Core
 import Auth
 import Workspace
 
-/// Placeholder backends wired into the App target for milestone 1, where
-/// the goal is a compiling, navigable app shell — not a live Supabase
-/// connection yet. Every method fails clearly rather than silently
-/// no-opping, so it's obvious in manual testing that milestone 2's actual
-/// `supabase-swift`-backed implementations haven't been wired in yet. See
-/// docs/CLOUD_CONTINUATION.md for the exact next milestone that replaces
-/// these.
+/// Milestone 1 placeholder backends. As of milestone 2,
+/// `App/AppDependencies.swift` wires the real `SupabaseAuthBackend` /
+/// `SupabaseWorkspaceBackend` (see `Packages/Auth`, `Packages/Workspace`)
+/// into the running app — these are no longer used there. Kept in the repo
+/// (rather than deleted) as a lightweight, network-free `AuthBackend` /
+/// `WorkspaceBackend` pair for SwiftUI Previews or ad hoc manual testing of
+/// screens in isolation, where spinning up a real Supabase session isn't
+/// wanted. Every method still fails clearly rather than silently
+/// no-opping, so accidentally using one of these in place of the real
+/// backend is obvious immediately.
 
 struct NotYetImplemented: Error, CustomStringConvertible {
     var description: String { "Not implemented in milestone 1 — see docs/CLOUD_CONTINUATION.md" }

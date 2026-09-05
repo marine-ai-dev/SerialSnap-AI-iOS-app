@@ -1,0 +1,21 @@
+// Copy this file to Config/Supabase.xcconfig (gitignored — never commit the
+// copy with real values) and fill in your Supabase project's real values.
+// These become Info.plist entries (see project.yml) that
+// SupabaseKit.SupabaseConfig.fromInfoDictionary(_:) reads at runtime.
+//
+// Only the anonymous/public API key belongs here. NEVER put the
+// service-role key in this file, in any xcconfig, or anywhere client-side
+// — see docs/SECURITY.md "Least privilege".
+//
+// IMPORTANT xcconfig gotcha: "//" starts a comment in .xcconfig syntax,
+// which would silently truncate a "https://..." URL value. Split it with
+// an empty build-setting macro reference so xcconfig doesn't see a literal
+// "//":
+//
+//   SUPABASE_URL = https:/$()/your-project-ref.supabase.co
+//
+// (This expands to the real "https://..." URL at build time — the
+// `$()` itself resolves to nothing.)
+
+SUPABASE_URL = https:/$()/your-project-ref.supabase.co
+SUPABASE_ANON_KEY = your-anon-key-here

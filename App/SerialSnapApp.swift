@@ -4,25 +4,18 @@ import Workspace
 
 @main
 struct SerialSnapApp: App {
-    @StateObject private var authSession: AuthSessionStore
-    @StateObject private var workspaceStore: WorkspaceStore
-
-    init() {
-        // TODO(milestone 2): inject real Supabase-backed AuthBackend /
-        // WorkspaceBackend implementations here once Packages/Auth and
-        // Packages/Workspace grow their Supabase client integration (see
-        // docs/CLOUD_CONTINUATION.md, "Next executable milestone").
-        _authSession = StateObject(wrappedValue: AuthSessionStore(backend: UnimplementedAuthBackend()))
-        _workspaceStore = StateObject(wrappedValue: WorkspaceStore(backend: UnimplementedWorkspaceBackend()))
-    }
+    // The composition root — see App/AppDependencies.swift. Built once for
+    // the process lifetime; every backend it hands out is the real,
+    // Supabase-backed implementation (milestone 2).
+    private let dependencies = AppDependencies()
 
     var body: some Scene {
         WindowGroup {
             RootView()
-                .environmentObject(authSession)
-                .environmentObject(workspaceStore)
+                .environmentObject(dependencies.authSession)
+                .environmentObject(dependencies.workspaceStore)
                 .task {
-                    await authSession.restoreSessionIfAvailable()
+                    await dependencies.authSession.restoreSessionIfAvailable()
                 }
         }
     }

@@ -13,6 +13,18 @@ options:
     iOS: "17.0"
   createIntermediateGroups: true
 
+# Config/Supabase.xcconfig is gitignored and must be created locally from
+# Config/Supabase.xcconfig.example (see docs/CLOUD_ARCHITECTURE.md). Its
+# SUPABASE_URL / SUPABASE_ANON_KEY build settings are surfaced into the
+# app's Info.plist below via $(...) substitution, then read at runtime by
+# SupabaseKit.SupabaseConfig.fromInfoDictionary(_:) — never hardcoded here
+# or anywhere in source. A missing Config/Supabase.xcconfig fails the build
+# outright (XcodeGen/Xcode error on the missing include), rather than
+# silently building against no configuration.
+configFiles:
+  Debug: Config/Supabase.xcconfig
+  Release: Config/Supabase.xcconfig
+
 packages:
   Core:
     path: Packages/Core
@@ -26,6 +38,8 @@ packages:
     path: Packages/OCR
   Scanner:
     path: Packages/Scanner
+  SupabaseKit:
+    path: Packages/SupabaseKit
   Auth:
     path: Packages/Auth
   Workspace:
@@ -52,6 +66,12 @@ targets:
         UILaunchScreen: {}
         NSCameraUsageDescription: "SerialSnap uses the camera to scan serial numbers and asset labels. Photos are processed on-device and are not uploaded."
         ITSAppUsesNonExemptEncryption: false
+        # Substituted from Config/Supabase.xcconfig at build time (see
+        # `configFiles` above) — read at runtime via
+        # SupabaseKit.SupabaseConfig.fromInfoDictionary(_:). Never hardcode
+        # real values here.
+        SUPABASE_URL: "$(SUPABASE_URL)"
+        SUPABASE_ANON_KEY: "$(SUPABASE_ANON_KEY)"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.serialsnap.app
@@ -65,6 +85,7 @@ targets:
       - package: Parsing
       - package: OCR
       - package: Scanner
+      - package: SupabaseKit
       - package: Auth
       - package: Workspace
       - package: Assets

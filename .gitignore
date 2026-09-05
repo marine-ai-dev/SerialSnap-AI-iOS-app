@@ -34,6 +34,8 @@ fastlane/test_output
 .env
 .env.*
 !.env.example
+Config/*.xcconfig
+!Config/*.xcconfig.example
 *.p8
 *.p12
 *.mobileprovision
