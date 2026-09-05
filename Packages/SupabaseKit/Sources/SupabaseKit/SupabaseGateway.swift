@@ -34,8 +34,15 @@ public struct RemoteAuthUser: Sendable, Equatable {
         self.createdAt = createdAt
     }
 
-    public var asCoreUser: User {
-        User(id: id, email: email, displayName: displayName, createdAt: createdAt)
+    public var asCoreUser: Core.User {
+        // Explicitly qualified: `import Supabase` transitively re-exports
+        // Auth.User (the moduleAliases declared on the SupabaseKit ->
+        // Supabase dependency in Package.swift does not, in practice,
+        // prevent this — confirmed by a real CI compiler error, "'User' is
+        // ambiguous for type lookup in this context", the first time this
+        // file was actually compiled), which collides with this package's
+        // own Core.User at the bare, unqualified name `User`.
+        Core.User(id: id, email: email, displayName: displayName, createdAt: createdAt)
     }
 }
 
