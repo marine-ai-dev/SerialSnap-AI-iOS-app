@@ -13,6 +13,7 @@ let package = Package(
         .package(path: "../Parsing"),
     ],
     targets: [
-        .target(name: "Assets", dependencies: ["Core", "Sync", "Parsing"])
+        .target(name: "Assets", dependencies: ["Core", "Sync", "Parsing"]),
+        .testTarget(name: "AssetsTests", dependencies: ["Assets"])
     ]
 )

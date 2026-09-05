@@ -1,0 +1,83 @@
+# XcodeGen project spec. On a machine with Xcode + XcodeGen installed:
+#   brew install xcodegen
+#   xcodegen generate
+# ...to produce SerialSnap.xcodeproj wiring the App target to every local
+# Swift package under Packages/*. This container has neither Xcode nor
+# XcodeGen available (Linux, no Xcode toolchain) — see
+# docs/CLOUD_CONTINUATION.md for exact verification status and next steps.
+
+name: SerialSnap
+options:
+  bundleIdPrefix: com.serialsnap
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+packages:
+  Core:
+    path: Packages/Core
+  DesignSystem:
+    path: Packages/DesignSystem
+  Localization:
+    path: Packages/Localization
+  Parsing:
+    path: Packages/Parsing
+  OCR:
+    path: Packages/OCR
+  Scanner:
+    path: Packages/Scanner
+  Auth:
+    path: Packages/Auth
+  Workspace:
+    path: Packages/Workspace
+  Assets:
+    path: Packages/Assets
+  Sync:
+    path: Packages/Sync
+  Export:
+    path: Packages/Export
+  Settings:
+    path: Packages/Settings
+
+targets:
+  SerialSnap:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: App
+    info:
+      path: App/Info.plist
+      properties:
+        UILaunchScreen: {}
+        NSCameraUsageDescription: "SerialSnap uses the camera to scan serial numbers and asset labels. Photos are processed on-device and are not uploaded."
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.serialsnap.app
+        SWIFT_VERSION: "5.9"
+        TARGETED_DEVICE_FAMILY: "1" # iPhone; add "2" for iPad once validated
+        ENABLE_PREVIEWS: true
+    dependencies:
+      - package: Core
+      - package: DesignSystem
+      - package: Localization
+      - package: Parsing
+      - package: OCR
+      - package: Scanner
+      - package: Auth
+      - package: Workspace
+      - package: Assets
+      - package: Sync
+      - package: Export
+      - package: Settings
+
+schemes:
+  SerialSnap:
+    build:
+      targets:
+        SerialSnap: all
+    run:
+      config: Debug
+    test:
+      config: Debug

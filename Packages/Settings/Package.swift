@@ -7,7 +7,12 @@ let package = Package(
     products: [
         .library(name: "Settings", targets: ["Settings"])
     ],
+    dependencies: [
+        .package(path: "../Core"),
+        .package(path: "../Auth"),
+        .package(path: "../Workspace"),
+    ],
     targets: [
-        .target(name: "Settings")
+        .target(name: "Settings", dependencies: ["Core", "Auth", "Workspace"])
     ]
 )

@@ -7,7 +7,11 @@ let package = Package(
     products: [
         .library(name: "Auth", targets: ["Auth"])
     ],
+    dependencies: [
+        .package(path: "../Core")
+    ],
     targets: [
-        .target(name: "Auth")
+        // iOS-only: uses AuthenticationServices (Sign in with Apple).
+        .target(name: "Auth", dependencies: ["Core"])
     ]
 )

@@ -7,7 +7,12 @@ let package = Package(
     products: [
         .library(name: "Scanner", targets: ["Scanner"])
     ],
+    dependencies: [
+        .package(path: "../OCR"),
+        .package(path: "../Parsing"),
+    ],
     targets: [
-        .target(name: "Scanner")
+        // iOS-only: uses AVFoundation for camera capture.
+        .target(name: "Scanner", dependencies: ["OCR", "Parsing"])
     ]
 )
