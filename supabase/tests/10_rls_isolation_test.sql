@@ -47,6 +47,7 @@ commit;
 -- From here on, run as an ordinary authenticated (non-superuser) role so
 -- RLS actually applies. `postgres`/table owners bypass RLS by default.
 -- ======================================================================
+drop role if exists ss_test_authenticated;
 create role ss_test_authenticated nologin;
 grant usage on schema public to ss_test_authenticated;
 grant select, insert, update, delete on public.assets, public.workspaces, public.workspace_memberships, public.users to ss_test_authenticated;
