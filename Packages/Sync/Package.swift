@@ -8,10 +8,14 @@ let package = Package(
         .library(name: "Sync", targets: ["Sync"])
     ],
     dependencies: [
-        .package(path: "../Core")
+        .package(path: "../Core"),
+        .package(path: "../SupabaseKit")
     ],
     targets: [
-        .target(name: "Sync", dependencies: ["Core"]),
+        // SwiftData (SwiftDataWriteQueueStore.swift) is iOS/macOS-only and
+        // gated behind `#if canImport(SwiftData)`, so this target still
+        // builds for the plain in-memory store on any platform.
+        .target(name: "Sync", dependencies: ["Core", "SupabaseKit"]),
         .testTarget(name: "SyncTests", dependencies: ["Sync"])
     ]
 )
