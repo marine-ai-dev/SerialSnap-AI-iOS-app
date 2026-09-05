@@ -25,7 +25,19 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "../Core"),
-        .package(url: "https://github.com/supabase/supabase-swift", from: "2.55.0")
+        // Pinned below 2.50.0: from that version onward, supabase-swift's
+        // own Package.swift declares swift-tools-version 6.1, which the
+        // Swift 6.0.3 toolchain shipped in Xcode 16.2 (the current
+        // "latest-stable" on GitHub Actions' macos-14 runners as of this
+        // commit) cannot resolve at all ("contains incompatible tools
+        // version") — this is a real CI failure this session hit and
+        // verified by inspecting supabase-swift's tagged Package.swift
+        // files directly, not a guess. v2.49.0 (tools-version 5.10) has
+        // the same Auth/PostgREST APIs this app uses (signInWithIdToken,
+        // .from(...), .rpc(...)) and the same module-name collision this
+        // package's aliasing works around. Revisit this pin once CI's
+        // Xcode version ships Swift 6.1+.
+        .package(url: "https://github.com/supabase/supabase-swift", "2.30.0"..<"2.50.0")
     ],
     targets: [
         .target(
