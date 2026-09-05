@@ -20,42 +20,60 @@ jobs:
   discover-packages:
     runs-on: macos-14
     outputs:
-      packages: ${{ steps.list.outputs.packages }}
-      has_packages: ${{ steps.list.outputs.has_packages }}
+      portable_packages: ${{ steps.list.outputs.portable_packages }}
+      has_portable_packages: ${{ steps.list.outputs.has_portable_packages }}
+      ios_only_packages: ${{ steps.list.outputs.ios_only_packages }}
+      has_ios_only_packages: ${{ steps.list.outputs.has_ios_only_packages }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: List Swift packages
+      - name: List Swift packages, split by platform support
         id: list
         run: |
           set -euo pipefail
-          matrix="[]"
+          # A package that declares .macOS(...) in its Package.swift is
+          # buildable/testable natively on the macOS runner with plain
+          # `swift build`/`swift test`. A package that declares iOS only
+          # (it depends on UIKit/AVFoundation/Vision/SwiftUI-for-iOS) cannot
+          # be built as a native macOS binary — plain `swift build` on this
+          # runner resolves the *host* (macOS) platform, which is a
+          # different build than the iOS one this app actually ships, and
+          # fails outright for packages with no macOS platform declared at
+          # all. Those must be built for the iOS Simulator destination via
+          # xcodebuild instead, so keep the two groups separate.
+          portable=()
+          ios_only=()
           if compgen -G "Packages/*/Package.swift" > /dev/null; then
-            names=()
             for pkg in Packages/*/Package.swift; do
-              names+=("\"$(dirname "$pkg")\"")
+              dir="$(dirname "$pkg")"
+              if grep -q '\.macOS(' "$pkg"; then
+                portable+=("\"$dir\"")
+              else
+                ios_only+=("\"$dir\"")
+              fi
             done
-            matrix="[$(IFS=,; echo "${names[*]}")]"
           fi
-          echo "packages=$matrix" >> "$GITHUB_OUTPUT"
-          if [ "$matrix" = "[]" ]; then
-            echo "has_packages=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_packages=true" >> "$GITHUB_OUTPUT"
-          fi
-          echo "Discovered packages: $matrix"
+          portable_matrix="[$(IFS=,; echo "${portable[*]:-}")]"
+          ios_only_matrix="[$(IFS=,; echo "${ios_only[*]:-}")]"
+          echo "portable_packages=$portable_matrix" >> "$GITHUB_OUTPUT"
+          echo "ios_only_packages=$ios_only_matrix" >> "$GITHUB_OUTPUT"
+          [ "$portable_matrix" = "[]" ] && echo "has_portable_packages=false" >> "$GITHUB_OUTPUT" || echo "has_portable_packages=true" >> "$GITHUB_OUTPUT"
+          [ "$ios_only_matrix" = "[]" ] && echo "has_ios_only_packages=false" >> "$GITHUB_OUTPUT" || echo "has_ios_only_packages=true" >> "$GITHUB_OUTPUT"
+          echo "Portable (macOS+iOS) packages: $portable_matrix"
+          echo "iOS-only packages: $ios_only_matrix"
 
   # ---------------------------------------------------------------------
-  # Build & test every discovered local Swift package.
+  # Build & test packages that declare macOS support (pure-Swift domain/
+  # parsing/export/sync logic) natively with `swift build`/`swift test`.
   # ---------------------------------------------------------------------
-  build-and-test:
+  build-and-test-portable:
     needs: discover-packages
-    if: needs.discover-packages.outputs.has_packages == 'true'
+    if: needs.discover-packages.outputs.has_portable_packages == 'true'
     runs-on: macos-14
     strategy:
       fail-fast: false
       matrix:
-        package: ${{ fromJson(needs.discover-packages.outputs.packages) }}
+        package: ${{ fromJson(needs.discover-packages.outputs.portable_packages) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -74,6 +92,41 @@ jobs:
       - name: swift test (${{ matrix.package }})
         working-directory: ${{ matrix.package }}
         run: swift test
+
+  # ---------------------------------------------------------------------
+  # Build iOS-only packages (UIKit/AVFoundation/Vision/SwiftUI-for-iOS)
+  # for the iOS Simulator destination via xcodebuild, since a plain
+  # `swift build` on the macOS runner would try to build them as native
+  # macOS binaries, which they were never declared to support.
+  # ---------------------------------------------------------------------
+  build-ios-only:
+    needs: discover-packages
+    if: needs.discover-packages.outputs.has_ios_only_packages == 'true'
+    runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJson(needs.discover-packages.outputs.ios_only_packages) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select latest stable Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: List available iOS simulators
+        run: xcrun simctl list devicetypes | head -30
+
+      - name: xcodebuild (${{ matrix.package }}) for iOS Simulator
+        working-directory: ${{ matrix.package }}
+        run: |
+          set -euo pipefail
+          scheme="$(basename "$PWD")"
+          xcodebuild build \
+            -scheme "$scheme" \
+            -destination 'generic/platform=iOS Simulator' \
+            -skipMacroValidation
 
   # ---------------------------------------------------------------------
   # Lint. Runs SwiftLint if a config is present anywhere in the repo;
@@ -157,6 +210,14 @@ jobs:
             sleep 2
           done
 
+      - name: Apply local auth schema shim (stands in for Supabase's auth.users/auth.uid())
+        if: steps.check.outputs.found == 'true'
+        run: |
+          set -euo pipefail
+          if [ -f supabase/tests/00_local_test_shim.sql ]; then
+            psql -v ON_ERROR_STOP=1 -f supabase/tests/00_local_test_shim.sql
+          fi
+
       - name: Apply migrations in order against ephemeral Postgres
         if: steps.check.outputs.found == 'true'
         run: |
@@ -167,6 +228,20 @@ jobs:
             psql -v ON_ERROR_STOP=1 -f "$f"
             echo "::endgroup::"
           done
+
+      - name: Run RLS isolation test suite
+        if: steps.check.outputs.found == 'true'
+        run: |
+          set -euo pipefail
+          if compgen -G "supabase/tests/*.sql" > /dev/null; then
+            for f in $(ls supabase/tests/*.sql | sort); do
+              base=$(basename "$f")
+              if [ "$base" = "00_local_test_shim.sql" ]; then continue; fi
+              echo "::group::Running $f"
+              psql -v ON_ERROR_STOP=1 -f "$f"
+              echo "::endgroup::"
+            done
+          fi
 
       - name: Skip (no migrations found yet)
         if: steps.check.outputs.found == 'false'

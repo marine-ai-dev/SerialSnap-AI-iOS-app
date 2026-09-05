@@ -14,7 +14,7 @@ public struct GlassSurfaceModifier: ViewModifier {
     }
 
     public func body(content: Content) -> some View {
-        if #available(iOS 18.0, *) {
+        if #available(iOS 18.0, macOS 15.0, *) {
             content
                 .background {
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)

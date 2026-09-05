@@ -177,7 +177,11 @@ public struct Asset: Codable, Equatable, Identifiable, Sendable {
 }
 
 extension String {
+    /// Uppercased, with every non-alphanumeric character (whitespace,
+    /// hyphens, slashes, punctuation) removed, so equivalent serials/tags
+    /// like "ABC-123", "abc 123", and "ABC123" all compare equal for
+    /// duplicate detection.
     public var normalizedForComparison: String {
-        self.uppercased().trimmingCharacters(in: .whitespacesAndNewlines).filter { !$0.isWhitespace }
+        String(self.uppercased().unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) })
     }
 }

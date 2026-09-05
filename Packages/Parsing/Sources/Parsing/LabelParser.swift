@@ -83,6 +83,19 @@ public enum LabelParser {
             let upper = line.uppercased()
             for keyword in keywords {
                 guard let range = upper.range(of: keyword) else { continue }
+                // Require a word boundary on both sides of the match so a
+                // keyword's letters embedded in a longer alphanumeric token
+                // (e.g. "SN12938471") are not mistaken for an explicit label —
+                // only a genuine "SN:", "SN ", or line-final "SN" counts.
+                if range.upperBound < upper.endIndex, upper[range.upperBound].isLetter || upper[range.upperBound].isNumber {
+                    continue
+                }
+                if range.lowerBound > upper.startIndex {
+                    let before = upper.index(before: range.lowerBound)
+                    if upper[before].isLetter || upper[before].isNumber {
+                        continue
+                    }
+                }
                 // Value is whatever follows the keyword on the same line,
                 // stripped of separators (":", "-", "#"), or if nothing
                 // follows, the next non-empty line (two-line label layout).
@@ -132,16 +145,19 @@ public enum LabelParser {
 
     private static func isKeywordLine(_ line: String) -> Bool {
         let upper = line.uppercased()
-        return (serialKeywords + modelKeywords + assetKeywords).contains { upper == $0 || upper.hasPrefix($0) }
+        return (serialKeywords + modelKeywords + assetKeywords).contains { upper == $0 }
     }
 
-    /// A plausible device code: 3-40 chars, mostly alphanumeric (allowing
-    /// internal hyphens/slashes/dots), containing at least one digit or at
+    /// A plausible device code: 3-40 chars, a single token (no embedded
+    /// whitespace — device identifiers don't contain spaces; a multi-word
+    /// line is descriptive text, not a code) built from alphanumerics plus
+    /// internal hyphens/slashes/dots, containing at least one digit or at
     /// least 4 letters (rules out stray English words like "Model:" leftovers).
     static func isPlausibleCode(_ value: String) -> Bool {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.count >= 3, trimmed.count <= 40 else { return false }
-        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-/. "))
+        guard !trimmed.contains(where: { $0.isWhitespace }) else { return false }
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-/."))
         guard trimmed.unicodeScalars.allSatisfy({ allowed.contains($0) }) else { return false }
         let hasDigit = trimmed.contains { $0.isNumber }
         let letterCount = trimmed.filter { $0.isLetter }.count

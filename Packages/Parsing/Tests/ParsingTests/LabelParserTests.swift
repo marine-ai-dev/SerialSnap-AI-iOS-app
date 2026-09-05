@@ -135,7 +135,9 @@ final class AmbiguityNormalizerTests: XCTestCase {
     }
 
     func testNoAlternatesWhenNoAmbiguousChars() {
-        let alts = AmbiguityNormalizer.alternates(for: "XYZ")
+        // "XYM" avoids every confusable glyph (O/0, I/1/l, S/5, B/8, Z/2, G/6) —
+        // "XYZ" would not qualify since Z is itself confusable with 2.
+        let alts = AmbiguityNormalizer.alternates(for: "XYM")
         XCTAssertTrue(alts.isEmpty)
     }
 
