@@ -91,7 +91,13 @@ jobs:
 
       - name: swift test (${{ matrix.package }})
         working-directory: ${{ matrix.package }}
-        run: swift test
+        run: |
+          set -euo pipefail
+          if compgen -G "Tests/*" > /dev/null 2>&1; then
+            swift test
+          else
+            echo "No Tests/ directory in ${{ matrix.package }} — nothing to run."
+          fi
 
   # ---------------------------------------------------------------------
   # Build iOS-only packages (UIKit/AVFoundation/Vision/SwiftUI-for-iOS)

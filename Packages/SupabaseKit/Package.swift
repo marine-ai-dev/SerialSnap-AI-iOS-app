@@ -15,7 +15,11 @@ import PackageDescription
 /// exposure at all.
 let package = Package(
     name: "SupabaseKit",
-    platforms: [.iOS(.v17)],
+    // supabase-swift supports macOS as well as iOS; declared here too so
+    // Auth/Workspace/Sync (which depend on this package and declare macOS
+    // support themselves, to let their unit tests run portably in CI
+    // without an iOS Simulator) don't hit a platform-mismatch build error.
+    platforms: [.iOS(.v17), .macOS(.v13)],
     products: [
         .library(name: "SupabaseKit", targets: ["SupabaseKit"])
     ],
