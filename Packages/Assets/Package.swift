@@ -7,7 +7,12 @@ let package = Package(
     products: [
         .library(name: "Assets", targets: ["Assets"])
     ],
+    dependencies: [
+        .package(path: "../Core"),
+        .package(path: "../Sync"),
+        .package(path: "../Parsing"),
+    ],
     targets: [
-        .target(name: "Assets")
+        .target(name: "Assets", dependencies: ["Core", "Sync", "Parsing"])
     ]
 )
