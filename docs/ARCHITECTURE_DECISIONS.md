@@ -25,6 +25,59 @@ it implies.
 
 ---
 
+## ADR-006: `supabase-swift` isolated behind a single `SupabaseKit` package
+Date: 2026-09-05
+Status: Accepted
+
+**Context:** Milestone 2 wires `Packages/Auth`, `Packages/Workspace`, and
+`Packages/Sync` to a real Supabase backend via the `supabase-swift` client.
+`supabase-swift` ships several library products (`Supabase`, `Auth`,
+`PostgREST`, `Storage`, `Functions`, `Realtime`); its `Auth` library
+compiles to a Swift module literally named `Auth`. This repo's own
+`Packages/Auth` package also compiles to a module named `Auth`. SwiftPM
+requires every target/module name to be unique across the whole resolved
+dependency graph — if both `Auth` modules end up in the same graph (which
+they would, the moment `Packages/Auth` depends on `supabase-swift`
+directly, or on any product that transitively pulls in its `Auth`
+library), the build fails outright with a module-name collision. This is a
+real SwiftPM constraint, not a hypothetical: `supabase-swift`'s `Supabase`
+umbrella product itself depends on, and `@_exported import`s, its `Auth`
+target, so *any* path to Sign in with Apple support pulls that module name
+in.
+
+**Decision:** Introduce one new package, `Packages/SupabaseKit`, as the
+*only* place in the repo that depends on `supabase-swift`. It uses SwiftPM
+module aliasing (SE-0339) on its single dependency edge to the `Supabase`
+product — `moduleAliases: ["Auth": "SupabaseAuthKit"]` — renaming the
+colliding module as compiled into `SupabaseKit`, so it never reaches the
+rest of the build graph under the name `Auth`. `SupabaseKit`'s own public
+API (`SupabaseGateway`, `SupabaseConfig`) is expressed entirely in plain
+Foundation/Core types (`Data`, `String`, `Date`, `Core.User`, generic
+`Encodable`/`Decodable` row DTOs) — `Auth`, `Workspace`, and `Sync` import
+only `SupabaseKit`, never `supabase-swift` or any of its submodules
+directly, and therefore never need to be aware of the module-aliasing
+detail at all. `Config/Supabase.xcconfig` (gitignored; see
+`Config/Supabase.xcconfig.example`) supplies `SUPABASE_URL` /
+`SUPABASE_ANON_KEY` at build time via Info.plist substitution;
+`SupabaseConfig.fromInfoDictionary(_:)` throws (rather than falling back to
+a hardcoded value) if either is missing, and `App/AppDependencies.swift`
+turns that into a fast, clear-message launch failure.
+
+**Consequences:** One extra package/hop for every Supabase-backed call,
+but a real SwiftPM build error (an unresolvable module collision, not a
+style preference) is avoided, and every other package stays completely
+decoupled from the third-party SDK's internal module layout — a future
+Supabase SDK major version bump, or even swapping `supabase-swift` for a
+hand-rolled REST client, only touches `Packages/SupabaseKit`. Because no
+Swift toolchain is reachable in this container (see
+docs/CLOUD_CONTINUATION.md), the module-aliasing declaration itself is
+**unverified by an actual SwiftPM resolve/build** — it is the first thing
+to confirm in a real Xcode/SwiftPM environment (`swift build` from
+`Packages/SupabaseKit`, then the full `SerialSnap` scheme), since an error
+here would be a hard blocker for every Supabase-backed package.
+
+---
+
 ## ADR-005: Strings via a String Catalog in a dedicated `Localization` package
 Date: 2026-09-05
 Status: Accepted

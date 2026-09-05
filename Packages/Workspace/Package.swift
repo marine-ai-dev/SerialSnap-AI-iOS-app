@@ -8,9 +8,10 @@ let package = Package(
         .library(name: "Workspace", targets: ["Workspace"])
     ],
     dependencies: [
-        .package(path: "../Core")
+        .package(path: "../Core"),
+        .package(path: "../SupabaseKit")
     ],
     targets: [
-        .target(name: "Workspace", dependencies: ["Core"])
+        .target(name: "Workspace", dependencies: ["Core", "SupabaseKit"])
     ]
 )

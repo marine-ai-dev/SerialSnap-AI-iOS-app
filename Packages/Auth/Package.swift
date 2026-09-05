@@ -8,10 +8,13 @@ let package = Package(
         .library(name: "Auth", targets: ["Auth"])
     ],
     dependencies: [
-        .package(path: "../Core")
+        .package(path: "../Core"),
+        .package(path: "../SupabaseKit")
     ],
     targets: [
         // iOS-only: uses AuthenticationServices (Sign in with Apple).
-        .target(name: "Auth", dependencies: ["Core"])
+        // Depends on SupabaseKit (not supabase-swift directly) — see
+        // Packages/SupabaseKit/Package.swift for why.
+        .target(name: "Auth", dependencies: ["Core", "SupabaseKit"])
     ]
 )
