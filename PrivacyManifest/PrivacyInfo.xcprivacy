@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SerialSnap Privacy Manifest (template).
+
+  PLACEMENT NOTE: This file currently lives at
+  PrivacyManifest/PrivacyInfo.xcprivacy because the Xcode app target
+  (e.g. SerialSnap/) does not exist yet in this repo. Once the app
+  target is created, this file MUST be moved into that target's
+  directory (e.g. SerialSnap/PrivacyInfo.xcprivacy) and added to the
+  target's "Copy Bundle Resources" build phase so it ships inside the
+  app bundle. See docs/APP_STORE_READINESS.md for the full checklist.
+
+  Keep this file's declarations in sync with docs/PRIVACY.md at all
+  times. Values here reflect the app's actual behavior as of this
+  writing: no tracking, no third-party analytics/ads, on-device OCR
+  only, and account/asset data used solely for app functionality.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- This app does not track users across apps/websites owned by other companies. -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+
+	<!-- No tracking domains are used, since NSPrivacyTracking is false. -->
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array>
+		<!-- Account identifier: email (or Apple-provided ID) + user ID,
+		     used to authenticate the user and scope their synced data. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeEmailAddress</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeUserID</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<!-- Structured asset inventory data (serial numbers, product
+		     names, notes, tags) the user scans/enters, synced to their
+		     own account so it's available across their devices. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeOtherUserContent</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<!--
+		  If/when the optional "attach a photo to an asset" feature ships,
+		  add an entry here:
+
+		  <dict>
+		      <key>NSPrivacyCollectedDataType</key>
+		      <string>NSPrivacyCollectedDataTypePhotosorVideos</string>
+		      <key>NSPrivacyCollectedDataTypeLinked</key>
+		      <true/>
+		      <key>NSPrivacyCollectedDataTypeTracking</key>
+		      <false/>
+		      <key>NSPrivacyCollectedDataTypePurposes</key>
+		      <array>
+		          <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+		      </array>
+		  </dict>
+
+		  ...and update docs/PRIVACY.md + the App Store Connect privacy
+		  questionnaire in the same change (see docs/APP_STORE_READINESS.md).
+		-->
+	</array>
+
+	<!-- Required-reason API usage. Update this list whenever a new
+	     required-reason API (from Apple's published list) is adopted,
+	     including ones pulled in transitively by a dependency. -->
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<!-- UserDefaults: used for local app preferences/UI state that
+		     is not sent off-device. Reason CA92.1 = accessing data
+		     stored by the app itself on the same device. -->
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+		<!-- File timestamp APIs: used, e.g., to display or sort locally
+		     cached asset attachments by creation/modification time.
+		     Reason C617.1 = displayed to the user, or used as part of a
+		     file's timestamp shown/managed within the app itself. -->
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>C617.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>
