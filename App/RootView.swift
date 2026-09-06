@@ -18,9 +18,10 @@ struct RootView: View {
         case .signedOut, .error:
             OnboardingView()
         case .signingIn:
-            ProgressView()
+            ProgressView("Signing in…")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(SSColor.background)
+                .accessibilityLabel("Signing in, please wait")
         case .signedIn:
             if workspaceStore.selectedWorkspace == nil {
                 WorkspaceSelectView()
@@ -36,12 +37,21 @@ struct OnboardingView: View {
     @State private var coordinator = SignInWithAppleCoordinator()
     @State private var signInError: String?
 
+    /// The error to surface: local sign-in error takes priority over an
+    /// auth-state error so we don't show a stale error after a new attempt.
+    private var effectiveError: String? {
+        if let e = signInError { return e }
+        if case .error(let msg) = authSession.state, !msg.isEmpty { return msg }
+        return nil
+    }
+
     var body: some View {
         VStack(spacing: 24) {
             Spacer()
             Image(systemName: "camera.viewfinder")
                 .font(.system(size: 64))
                 .foregroundStyle(SSColor.accent)
+                .accessibilityHidden(true)
             Text(L10n.Onboarding.welcomeTitle)
                 .font(SSFont.title)
                 .multilineTextAlignment(.center)
@@ -50,13 +60,13 @@ struct OnboardingView: View {
                 .foregroundStyle(SSColor.secondaryText)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
-            if let signInError {
-                Text(signInError)
+            if let err = effectiveError {
+                Text(err)
                     .font(SSFont.caption)
                     .foregroundStyle(.red)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
-                    .accessibilityLabel(signInError)
+                    .accessibilityLabel("Sign-in error: \(err)")
             }
 #if DEBUG
             Button("Debug: Skip Auth") {
@@ -64,6 +74,7 @@ struct OnboardingView: View {
             }
             .font(.caption)
             .foregroundStyle(.orange)
+            .accessibilityLabel("Debug: bypass authentication")
 #endif
             Spacer()
             Button {
@@ -75,10 +86,12 @@ struct OnboardingView: View {
                             await authSession.signInWithApple(identityToken: credential.identityToken, nonce: credential.nonce)
                         }
                     case .failure(let error):
-                        // ASAuthorizationError.canceled is the user dismissing
-                        // the system sheet — not an error worth surfacing.
+                        // ASAuthorizationError.canceled = user dismissed the sheet — not an error.
                         if (error as? ASAuthorizationError)?.code == .canceled { return }
-                        signInError = String(describing: error)
+                        // .notHandled / .invalidResponse / .failed / .notInteractive:
+                        // all other ASAuthorizationError codes are real failures worth surfacing.
+                        signInError = (error as? ASAuthorizationError)?.localizedDescription
+                            ?? error.localizedDescription
                     }
                 }
             } label: {
@@ -88,6 +101,7 @@ struct OnboardingView: View {
             .buttonStyle(.borderedProminent)
             .padding(.horizontal, 32)
             .padding(.bottom, 40)
+            .accessibilityLabel(L10n.Auth.signInWithApple)
         }
         .background(SSColor.background)
     }

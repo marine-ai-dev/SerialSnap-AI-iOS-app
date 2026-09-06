@@ -43,16 +43,21 @@ public final class CaptureSessionController: NSObject, ObservableObject {
         session.sessionPreset = .photo
     }
 
+    // AVFoundation requires startRunning/stopRunning off the main thread.
+    private static let sessionQueue = DispatchQueue(label: "com.serialsnap.capturesession", qos: .userInitiated)
+
     public func start() {
         guard !session.isRunning else { return }
-        session.startRunning()
         isRunning = true
+        let s = session
+        Self.sessionQueue.async { s.startRunning() }
     }
 
     public func stop() {
         guard session.isRunning else { return }
-        session.stopRunning()
         isRunning = false
+        let s = session
+        Self.sessionQueue.async { s.stopRunning() }
     }
 
     /// Captures one frame and returns the deterministically-extracted

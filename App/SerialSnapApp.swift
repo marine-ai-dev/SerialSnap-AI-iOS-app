@@ -4,16 +4,15 @@ import Workspace
 
 @main
 struct SerialSnapApp: App {
-    // The composition root — see App/AppDependencies.swift. Built once for
-    // the process lifetime; every backend it hands out is the real,
-    // Supabase-backed implementation (milestone 2).
     private let dependencies = AppDependencies()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environmentObject(dependencies.authSession)
                 .environmentObject(dependencies.workspaceStore)
+                .environmentObject(dependencies.assetViewModel)
                 .task {
 #if DEBUG
                     if ProcessInfo.processInfo.arguments.contains("--debug-skip-auth") {
@@ -23,6 +22,11 @@ struct SerialSnapApp: App {
                     }
 #endif
                     await dependencies.authSession.restoreSessionIfAvailable()
+                }
+                .onChange(of: scenePhase) {
+                    if scenePhase == .active {
+                        Task { await dependencies.assetViewModel.flush() }
+                    }
                 }
         }
     }

@@ -28,6 +28,7 @@ final class AppDependencies {
     let workspaceStore: WorkspaceStore
     let syncEngine: SyncEngine
     let assetStore: AssetStore
+    let assetViewModel: AssetViewModel
 
     init() {
         let config: SupabaseConfig
@@ -74,5 +75,6 @@ final class AppDependencies {
         let remoteAssetService = SupabaseAssetRemoteService(gateway: gateway)
         syncEngine = SyncEngine(store: writeQueueStore, remote: remoteAssetService)
         assetStore = AssetStore(localStore: assetLocalStore, writeQueue: writeQueueStore)
+        assetViewModel = AssetViewModel(assetStore: assetStore, syncEngine: syncEngine)
     }
 }

@@ -11,6 +11,7 @@
 		114C57DC43364DECC11345F6 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 68E71BA00507F5DE8B0BD6FE /* PrivacyInfo.xcprivacy */; };
 		1FD7C978039820B568F82D13 /* AssetListScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA65D15ED5BDB470F24E6A93 /* AssetListScreen.swift */; };
 		2B51B655656B8663F2001576 /* SettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DFE9245992CE66E3FED2C67 /* SettingsScreen.swift */; };
+		364EAD9983375926CBF7EBC5 /* AssetViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4554FAA4CC685406DA2B5D58 /* AssetViewModel.swift */; };
 		56ECB078E9A6257D5A915EE2 /* Parsing in Frameworks */ = {isa = PBXBuildFile; productRef = BB268CE4A702823EB323F43F /* Parsing */; };
 		5D12BDFFEED89235BABB670E /* Sync in Frameworks */ = {isa = PBXBuildFile; productRef = 19EC1EDA203EF514963AEBDF /* Sync */; };
 		740B4E8D42B1B9C873C8D2D8 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4923D030FA1BC880ED98D54A /* RootView.swift */; };
@@ -40,6 +41,7 @@
 		25DD40946132A4D83B3D40D0 /* Scanner */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Scanner; path = Packages/Scanner; sourceTree = SOURCE_ROOT; };
 		3952C7D1E4C9E6F8A751E764 /* SignInWithAppleCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInWithAppleCoordinator.swift; sourceTree = "<group>"; };
 		40B3634B7588828E9B6C591B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		4554FAA4CC685406DA2B5D58 /* AssetViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetViewModel.swift; sourceTree = "<group>"; };
 		4923D030FA1BC880ED98D54A /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		57A663BFD2F480B7F966AA46 /* Localization */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Localization; path = Packages/Localization; sourceTree = SOURCE_ROOT; };
 		5DFE9245992CE66E3FED2C67 /* SettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsScreen.swift; sourceTree = "<group>"; };
@@ -106,6 +108,7 @@
 			children = (
 				0783615EA771952D8E749D74 /* AppDependencies.swift */,
 				AA65D15ED5BDB470F24E6A93 /* AssetListScreen.swift */,
+				4554FAA4CC685406DA2B5D58 /* AssetViewModel.swift */,
 				40B3634B7588828E9B6C591B /* Info.plist */,
 				68E71BA00507F5DE8B0BD6FE /* PrivacyInfo.xcprivacy */,
 				4923D030FA1BC880ED98D54A /* RootView.swift */,
@@ -244,6 +247,7 @@
 			files = (
 				9CF2644A138A1B28C8A14BED /* AppDependencies.swift in Sources */,
 				1FD7C978039820B568F82D13 /* AssetListScreen.swift in Sources */,
+				364EAD9983375926CBF7EBC5 /* AssetViewModel.swift in Sources */,
 				740B4E8D42B1B9C873C8D2D8 /* RootView.swift in Sources */,
 				747DFA4C7D875CDF5D4328B2 /* ScannerScreen.swift in Sources */,
 				B3D97E882FB9C82AA2C7A684 /* SerialSnapApp.swift in Sources */,
