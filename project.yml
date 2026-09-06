@@ -40,8 +40,8 @@ packages:
     path: Packages/Scanner
   SupabaseKit:
     path: Packages/SupabaseKit
-  Auth:
-    path: Packages/Auth
+  AppAuth:
+    path: Packages/AppAuth
   Workspace:
     path: Packages/Workspace
   Assets:
@@ -86,7 +86,7 @@ targets:
       - package: OCR
       - package: Scanner
       - package: SupabaseKit
-      - package: Auth
+      - package: AppAuth
       - package: Workspace
       - package: Assets
       - package: Sync

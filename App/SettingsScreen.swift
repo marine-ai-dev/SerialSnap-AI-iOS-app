@@ -1,5 +1,5 @@
 import SwiftUI
-import Auth
+import AppAuth
 import Settings
 import Localization
 

@@ -77,4 +77,17 @@ public final class AuthSessionStore: ObservableObject {
             state = .error(String(describing: error))
         }
     }
+
+#if DEBUG
+    /// Skips real Sign in with Apple — only available in Debug builds for
+    /// Simulator QA where no Apple ID is configured.
+    public func debugSignIn() {
+        let stub = User(
+            id: "debug-user-00000000",
+            email: "debug@serialsnap.local",
+            displayName: "Debug User"
+        )
+        state = .signedIn(stub)
+    }
+#endif
 }

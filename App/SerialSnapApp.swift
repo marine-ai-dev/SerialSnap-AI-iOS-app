@@ -1,5 +1,5 @@
 import SwiftUI
-import Auth
+import AppAuth
 import Workspace
 
 @main
@@ -15,6 +15,13 @@ struct SerialSnapApp: App {
                 .environmentObject(dependencies.authSession)
                 .environmentObject(dependencies.workspaceStore)
                 .task {
+#if DEBUG
+                    if ProcessInfo.processInfo.arguments.contains("--debug-skip-auth") {
+                        dependencies.authSession.debugSignIn()
+                        dependencies.workspaceStore.debugSelectStubWorkspace()
+                        return
+                    }
+#endif
                     await dependencies.authSession.restoreSessionIfAvailable()
                 }
         }

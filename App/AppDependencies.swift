@@ -1,7 +1,7 @@
 import Foundation
 import Core
 import SupabaseKit
-import Auth
+import AppAuth
 import Workspace
 import Sync
 import Assets

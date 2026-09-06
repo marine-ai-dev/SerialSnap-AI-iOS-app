@@ -1,6 +1,6 @@
 import Foundation
 import Core
-import Auth
+import AppAuth
 import Workspace
 
 /// Milestone 1 placeholder backends. As of milestone 2,

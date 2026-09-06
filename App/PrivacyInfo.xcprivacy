@@ -2,13 +2,9 @@
 <!--
   SerialSnap Privacy Manifest (template).
 
-  PLACEMENT NOTE: This file currently lives at
-  PrivacyManifest/PrivacyInfo.xcprivacy because the Xcode app target
-  (e.g. SerialSnap/) does not exist yet in this repo. Once the app
-  target is created, this file MUST be moved into that target's
-  directory (e.g. SerialSnap/PrivacyInfo.xcprivacy) and added to the
-  target's "Copy Bundle Resources" build phase so it ships inside the
-  app bundle. See docs/APP_STORE_READINESS.md for the full checklist.
+  Placed in App/ so xcodegen picks it up automatically into the
+  SerialSnap target's "Copy Bundle Resources" build phase. See
+  docs/APP_STORE_READINESS.md for the full release checklist.
 
   Keep this file's declarations in sync with docs/PRIVACY.md at all
   times. Values here reflect the app's actual behavior as of this

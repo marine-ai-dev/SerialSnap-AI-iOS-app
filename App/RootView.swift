@@ -1,6 +1,6 @@
 import AuthenticationServices
 import SwiftUI
-import Auth
+import AppAuth
 import Workspace
 import Localization
 import DesignSystem
@@ -58,6 +58,13 @@ struct OnboardingView: View {
                     .padding(.horizontal, 32)
                     .accessibilityLabel(signInError)
             }
+#if DEBUG
+            Button("Debug: Skip Auth") {
+                authSession.debugSignIn()
+            }
+            .font(.caption)
+            .foregroundStyle(.orange)
+#endif
             Spacer()
             Button {
                 signInError = nil
@@ -87,6 +94,7 @@ struct OnboardingView: View {
 }
 
 struct WorkspaceSelectView: View {
+    @EnvironmentObject private var authSession: AuthSessionStore
     @EnvironmentObject private var workspaceStore: WorkspaceStore
     @State private var newWorkspaceName = ""
 
@@ -102,7 +110,20 @@ struct WorkspaceSelectView: View {
                 }
                 Section(L10n.Workspace.createTitle) {
                     TextField(L10n.Workspace.namePlaceholder, text: $newWorkspaceName)
+                    Button(L10n.Workspace.createTitle) {
+                        guard case .signedIn(let user) = authSession.state else { return }
+                        Task { await workspaceStore.createWorkspace(name: newWorkspaceName, ownerID: user.id) }
+                    }
+                    .disabled(newWorkspaceName.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
+#if DEBUG
+                Section("Debug") {
+                    Button("Skip: Use Stub Workspace") {
+                        workspaceStore.debugSelectStubWorkspace()
+                    }
+                    .foregroundStyle(.orange)
+                }
+#endif
             }
             .navigationTitle(L10n.Workspace.selectTitle)
         }

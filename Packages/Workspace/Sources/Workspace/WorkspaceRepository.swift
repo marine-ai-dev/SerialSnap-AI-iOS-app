@@ -65,4 +65,17 @@ public final class WorkspaceStore: ObservableObject {
     public func select(workspaceID: WorkspaceID) {
         selectedWorkspaceID = workspaceID
     }
+
+#if DEBUG
+    /// Injects a stub workspace — only for Simulator QA without a real Supabase project.
+    public func debugSelectStubWorkspace() {
+        let stub = Workspace(
+            id: "debug-workspace-00000000",
+            name: "Debug Workspace",
+            ownerID: "debug-user-00000000"
+        )
+        workspaces = [stub]
+        selectedWorkspaceID = stub.id
+    }
+#endif
 }

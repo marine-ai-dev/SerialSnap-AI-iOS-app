@@ -9,10 +9,10 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "../Core"),
-        .package(path: "../Auth"),
+        .package(path: "../AppAuth"),
         .package(path: "../Workspace"),
     ],
     targets: [
-        .target(name: "Settings", dependencies: ["Core", "Auth", "Workspace"])
+        .target(name: "Settings", dependencies: ["Core", "AppAuth", "Workspace"])
     ]
 )

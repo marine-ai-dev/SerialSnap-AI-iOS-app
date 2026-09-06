@@ -1,6 +1,6 @@
 import Foundation
 import Core
-import Auth
+import AppAuth
 import Workspace
 
 /// Non-UI state/actions backing the Settings screen (account, workspace,

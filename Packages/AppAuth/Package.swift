@@ -2,10 +2,10 @@
 import PackageDescription
 
 let package = Package(
-    name: "Auth",
+    name: "AppAuth",
     platforms: [.iOS(.v17), .macOS(.v13)],
     products: [
-        .library(name: "Auth", targets: ["Auth"])
+        .library(name: "AppAuth", targets: ["AppAuth"])
     ],
     dependencies: [
         .package(path: "../Core"),
@@ -15,6 +15,6 @@ let package = Package(
         // iOS-only: uses AuthenticationServices (Sign in with Apple).
         // Depends on SupabaseKit (not supabase-swift directly) — see
         // Packages/SupabaseKit/Package.swift for why.
-        .target(name: "Auth", dependencies: ["Core", "SupabaseKit"])
+        .target(name: "AppAuth", dependencies: ["Core", "SupabaseKit"])
     ]
 )
